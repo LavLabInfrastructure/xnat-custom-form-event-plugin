@@ -1,17 +1,27 @@
 # XNAT Custom Form Event Plugin
 
-Publishes a typed XNAT event after custom form field data is saved or removed on a project, subject, experiment, or scan in XNAT 1.10.x. The event is emitted only when a object under a UUID-like form key actually changes; unchanged updates, non-form custom variables, and legacy custom variables do not generate it.
+Publishes XNAT Event Service events after custom form data changes on supported XNAT data items in XNAT 1.10.x. It registers distinct subscription-visible triggers for the Event Service basetypes:
 
-## Event contract
+- `Custom Form (Auto QC) - Modified`
+- `Custom Form (CR Session) - Modified`
+- `Custom Form (CT Session) - Modified`
+- `Custom Form (Manual QC) - Modified`
+- `Custom Form (MR Session) - Modified`
+- `Custom Form (PET MR Session) - Modified`
+- `Custom Form (PET Session) - Modified`
+- `Custom Form (Project) - Modified`
+- `Custom Form (Protocol Validation) - Modified`
+- `Custom Form (ROI Collection) - Modified`
+- `Custom Form (Subject) - Modified`
+- `Custom Form (XSync Assessor Data) - Modified`
 
-The Reactor-backed XNAT event bus publishes `org.nrg.xnat.customformevent.CustomFormModifiedEvent` with:
+The XSync trigger accepts the generic `xsync:assessorData` type when provided by an installed XSync extension; the model is not part of stock XNAT.
 
-- `itemId`: ID of the XNAT item whose custom fields changed
-- `itemType`: XSI type for that item
-- `username`: user who made the change
-- `changedForms`: map from custom-field/form ID to its resulting JSON data; removed entries have a JSON `null` value
+Only changed JSON object values under UUID-shaped form IDs create events; unchanged values and ordinary custom variables do not.
 
-A plugin listener can implement `Consumer<Event<CustomFormModifiedEvent>>` and use XNAT's `@EventListener` annotation to subscribe through its event wiring service. The event fires after a successful save, so listeners see persisted changes.
+## Event payload
+
+Each event carries the XNAT object, submitting user, project context, and `changedForms`: a map from form ID to the resulting JSON data. Removed forms are represented by a JSON `null` value. Events are triggered through XNAT's Event Service and appear as subscription triggers after the plugin is installed and XNAT is restarted.
 
 ## Build
 
@@ -21,7 +31,7 @@ Build the XNAT plugin archive with Java 21 or newer (required by XNAT 1.10.x art
 ./gradlew xnatPluginJar
 ```
 
-Install the generated `build/libs/*-xpl.jar` into the XNAT plugins directory and restart XNAT. Build against the same XNAT 1.10.x version used by the target installation.
+Install the generated `build/libs/*-xpl.jar` into the XNAT plugins directory and restart XNAT. Build against the same XNAT 1.10.x version used by the target installation. The custom-form event triggers should then be available in the Event Service subscription UI.
 
 ## GitHub releases
 

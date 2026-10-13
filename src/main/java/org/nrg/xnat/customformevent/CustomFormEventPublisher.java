@@ -5,11 +5,10 @@ import com.fasterxml.jackson.databind.node.NullNode;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
-import org.nrg.framework.services.NrgEventServiceI;
 import org.nrg.xft.ItemI;
 import org.nrg.xft.security.UserI;
+import org.nrg.xnat.eventservice.services.EventService;
 import org.nrg.xnat.services.customfields.CustomFieldService;
-import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -17,12 +16,11 @@ import java.util.Set;
 import java.util.TreeSet;
 
 @Aspect
-@Component
 public class CustomFormEventPublisher {
-    private final NrgEventServiceI eventService;
+    private final EventService eventService;
     private final CustomFieldService customFieldService;
 
-    public CustomFormEventPublisher(final NrgEventServiceI eventService,
+    public CustomFormEventPublisher(final EventService eventService,
                                     final CustomFieldService customFieldService) {
         this.eventService = eventService;
         this.customFieldService = customFieldService;
@@ -41,8 +39,7 @@ public class CustomFormEventPublisher {
         final Map<String, JsonNode> changedForms = findChangedForms(oldFields, newFields);
 
         if (!changedForms.isEmpty()) {
-            eventService.triggerEvent(new CustomFormModifiedEvent(item.getStringProperty("ID"), item.getXSIType(),
-                    user.getUsername(), changedForms));
+            eventService.triggerEvent(CustomFormModifiedEventFactory.create(item, user.getUsername(), changedForms));
         }
         return result;
     }
