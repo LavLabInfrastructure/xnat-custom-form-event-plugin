@@ -2,6 +2,9 @@ package org.nrg.xnat.customformevent;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import org.nrg.xnat.eventservice.events.AbstractEventServiceEvent;
+import org.nrg.xft.ItemI;
+import org.nrg.xft.XFTItem;
+import org.nrg.xft.search.ItemSearch;
 import org.nrg.xft.security.UserI;
 
 import java.util.Collections;
@@ -14,7 +17,6 @@ public abstract class CustomFormModifiedEvent<T> extends AbstractEventServiceEve
 
     protected CustomFormModifiedEvent() {
         super();
-        eventObject = null;
         changedForms = Collections.emptyMap();
     }
 
@@ -22,17 +24,24 @@ public abstract class CustomFormModifiedEvent<T> extends AbstractEventServiceEve
                                      final String xsiType, final String payloadId,
                                      final Map<String, JsonNode> changedForms) {
         super(item, user, Status.MODIFIED, projectId, xsiType);
-        this.eventObject = item;
         this.payloadId = payloadId;
         this.changedForms = Collections.unmodifiableMap(new LinkedHashMap<>(changedForms));
     }
 
-    private final T eventObject;
     private final Map<String, JsonNode> changedForms;
 
     @Override
+    @SuppressWarnings("unchecked")
     public final T getObject(final UserI user) {
-        return eventObject;
+        if (ItemI.class.isAssignableFrom(getObjectClass())) {
+            try {
+                final XFTItem item = ItemSearch.GetItem(xsiType, payloadId, user, false);
+                return (T) (item == null ? null : org.nrg.xdat.base.BaseElement.GetGeneratedItem(item));
+            } catch (final Exception ignored) {
+                return null;
+            }
+        }
+        return null;
     }
 
     @Override

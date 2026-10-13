@@ -39,7 +39,9 @@ public class CustomFormEventPublisher {
         final Map<String, JsonNode> changedForms = findChangedForms(oldFields, newFields);
 
         if (!changedForms.isEmpty()) {
-            eventService.triggerEvent(CustomFormModifiedEventFactory.create(item, user.getUsername(), changedForms));
+            final Object eventItem = BaseElement.GetGeneratedItem(item);
+            eventService.triggerEvent(CustomFormModifiedEventFactory.create(
+                    eventItem == null ? item : eventItem, user.getUsername(), changedForms));
         }
         return result;
     }

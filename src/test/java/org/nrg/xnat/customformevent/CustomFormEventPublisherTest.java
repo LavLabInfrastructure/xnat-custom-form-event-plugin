@@ -196,6 +196,7 @@ class CustomFormEventPublisherTest {
         assertThat(subjectEvent.getPayloadId()).isEqualTo("subject");
         assertThat(experimentEvent.getPayloadId()).isEqualTo("experiment");
         assertThat(scanEvent.getPayloadId()).isEqualTo("42");
+        assertThat(experimentEvent.getObjectClass()).isEqualTo(experiment.getClass());
     }
 
     @Test

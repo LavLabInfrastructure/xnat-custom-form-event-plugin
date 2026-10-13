@@ -1,6 +1,7 @@
 package org.nrg.xnat.customformevent;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import org.nrg.xdat.base.BaseElement;
 import org.nrg.xdat.model.XnatExperimentdataI;
 import org.nrg.xdat.model.XnatImagescandataI;
 import org.nrg.xdat.model.XnatProjectdataI;
@@ -15,23 +16,26 @@ final class CustomFormModifiedEventFactory {
 
     static CustomFormModifiedEvent<?> create(final Object item, final String username,
                                               final Map<String, JsonNode> changedForms) {
-        if (item instanceof XnatProjectdataI project) {
+        final Object eventItem = item instanceof ItemI xnatItem
+                ? BaseElement.GetGeneratedItem(xnatItem)
+                : item;
+        if (eventItem instanceof XnatProjectdataI project) {
             return new ProjectCustomFormModifiedEvent(project, username, changedForms);
         }
-        if (item instanceof XnatSubjectdataI subject) {
+        if (eventItem instanceof XnatSubjectdataI subject) {
             return new SubjectCustomFormModifiedEvent(subject, username, changedForms);
         }
-        if (item instanceof XnatExperimentdataI experiment) {
+        if (eventItem instanceof XnatExperimentdataI experiment) {
             return createExperimentEvent(experiment, username, changedForms);
         }
-        if (item instanceof XnatImagescandataI scan) {
+        if (eventItem instanceof XnatImagescandataI scan) {
             return new ScanCustomFormModifiedEvent(scan, username, changedForms);
         }
-        if (item instanceof ItemI xnatItem) {
+        if (eventItem instanceof ItemI xnatItem) {
             return createTypedEvent(xnatItem, username, changedForms);
         }
         throw new IllegalArgumentException("Unsupported custom-field item type: " +
-                (item == null ? "null" : item.getClass().getName()));
+                (eventItem == null ? "null" : eventItem.getClass().getName()));
     }
 
     private static CustomFormModifiedEvent<?> createExperimentEvent(final XnatExperimentdataI experiment,
