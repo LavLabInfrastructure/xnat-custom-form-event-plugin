@@ -26,8 +26,8 @@ public class CustomFormEventPublisher {
         this.customFieldService = customFieldService;
     }
 
-    @Around("execution(* org.nrg.xnat.services.customfields.impl.DefaultCustomFieldService.setFields(..)) || " +
-            "execution(* org.nrg.xnat.services.customfields.impl.DefaultCustomFieldService.removeField(..))")
+    @Around("execution(* org.nrg.xnat.services.customfields.CustomFieldService+.setFields(..)) || " +
+            "execution(* org.nrg.xnat.services.customfields.CustomFieldService+.removeField(..))")
     public Object publishAfterCustomFieldsSave(final ProceedingJoinPoint joinPoint) throws Throwable {
         final Object[] arguments = joinPoint.getArgs();
         final UserI user = (UserI) arguments[0];

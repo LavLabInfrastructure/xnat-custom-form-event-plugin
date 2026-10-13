@@ -6,9 +6,9 @@ import org.nrg.xnat.services.customfields.CustomFieldService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
 
+@EnableAspectJAutoProxy(proxyTargetClass = true)
 @XnatPlugin(value = "CustomFormEvent", name = "Custom Form Modification Events",
         description = "Publishes an XNAT event when custom form data is changed", version = "1.0.0")
-@EnableAspectJAutoProxy(proxyTargetClass = true)
 public class CustomFormEventPlugin {
     @Bean
     public CustomFormEventPublisher customFormEventPublisher(final EventService eventService,
