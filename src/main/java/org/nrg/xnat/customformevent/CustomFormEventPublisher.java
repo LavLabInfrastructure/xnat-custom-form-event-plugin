@@ -5,7 +5,9 @@ import com.fasterxml.jackson.databind.node.NullNode;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import org.nrg.xdat.base.BaseElement;
 import org.nrg.xft.ItemI;
+import org.nrg.xft.XFTItem;
 import org.nrg.xft.security.UserI;
 import org.nrg.xnat.eventservice.services.EventService;
 import org.nrg.xnat.services.customfields.CustomFieldService;
@@ -26,22 +28,42 @@ public class CustomFormEventPublisher {
         this.customFieldService = customFieldService;
     }
 
-    @Around("execution(* org.nrg.xnat.services.customfields.CustomFieldService+.setFields(..)) || " +
-            "execution(* org.nrg.xnat.services.customfields.CustomFieldService+.removeField(..))")
+    @Around("execution(* org.nrg.xft.utils.SaveItemHelper.save(org.nrg.xft.ItemI, org.nrg.xft.security.UserI, boolean, boolean, org.nrg.xft.event.EventMetaI))")
     public Object publishAfterCustomFieldsSave(final ProceedingJoinPoint joinPoint) throws Throwable {
         final Object[] arguments = joinPoint.getArgs();
-        final UserI user = (UserI) arguments[0];
-        final ItemI item = (ItemI) arguments[1];
-        final JsonNode currentFields = customFieldService.getFields(item);
-        final JsonNode oldFields = currentFields == null ? null : currentFields.deepCopy();
+        final ItemI item = (ItemI) arguments[0];
+        final UserI user = (UserI) arguments[1];
+        final JsonNode oldFields = getCustomFields(item.getCurrentDBVersion());
         final Object result = joinPoint.proceed();
-        final JsonNode newFields = (JsonNode) result;
+        final JsonNode newFields = getCustomFields(item);
         final Map<String, JsonNode> changedForms = findChangedForms(oldFields, newFields);
 
         if (!changedForms.isEmpty()) {
             eventService.triggerEvent(CustomFormModifiedEventFactory.create(item, user.getUsername(), changedForms));
         }
         return result;
+    }
+
+    private JsonNode getCustomFields(final ItemI item) throws Exception {
+        if (item == null) {
+            return null;
+        }
+        final ItemI generatedItem = BaseElement.GetGeneratedItem(item);
+        if (generatedItem != null) {
+            try {
+                return customFieldService.getFields(generatedItem);
+            } catch (final UnsupportedOperationException ignored) {
+                return null;
+            }
+        }
+        if (item instanceof XFTItem xftItem) {
+            try {
+                return customFieldService.getFields(xftItem);
+            } catch (final UnsupportedOperationException ignored) {
+                return null;
+            }
+        }
+        return null;
     }
 
     static Map<String, JsonNode> findChangedForms(final JsonNode oldFields, final JsonNode newFields) {

@@ -9,12 +9,11 @@ import org.nrg.xdat.model.XnatProjectdataI;
 import org.nrg.xdat.model.XnatSubjectdataI;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.nrg.xft.ItemI;
+import org.nrg.xft.XFTItem;
 import org.nrg.xft.security.UserI;
 import org.nrg.xnat.eventservice.events.EventServiceEvent;
 import org.nrg.xnat.eventservice.services.EventService;
 import org.nrg.xnat.services.customfields.CustomFieldService;
-import org.springframework.aop.support.AopUtils;
-import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 import java.util.Map;
 
@@ -27,138 +26,114 @@ import static org.assertj.core.api.Assertions.assertThat;
 class CustomFormEventPublisherTest {
     private final ObjectMapper mapper = new ObjectMapper();
 
-    @org.springframework.context.annotation.Configuration
-    @org.springframework.context.annotation.EnableAspectJAutoProxy(proxyTargetClass = true)
-    static class AopTestConfiguration {
-        @org.springframework.context.annotation.Bean
-        EventService eventService() {
-            return mock(EventService.class);
-        }
-
-        @org.springframework.context.annotation.Bean
-        CustomFieldService customFieldService() {
-            return new TestCustomFieldService();
-        }
-
-        @org.springframework.context.annotation.Bean
-        CustomFormEventPublisher publisher(EventService eventService, CustomFieldService customFieldService) {
-            return new CustomFormEventPublisher(eventService, customFieldService);
-        }
-    }
-
-    public static class TestCustomFieldService implements CustomFieldService {
-        private JsonNode fields = new ObjectMapper().createObjectNode();
-
-        public TestCustomFieldService() {
-        }
-
-        @Override
-        public JsonNode getFields(ItemI item) {
-            return fields;
-        }
-
-        @Override
-        public JsonNode getFields(ItemI item, java.util.List<String> fieldNames) {
-            return fields;
-        }
-
-        @Override
-        public JsonNode getFieldValue(ItemI item, String fieldName) {
-            return fields.get(fieldName);
-        }
-
-        @Override
-        public JsonNode setFields(UserI user, ItemI item, JsonNode newFields) {
-            fields = newFields.deepCopy();
-            return fields;
-        }
-
-        @Override
-        public JsonNode removeField(UserI user, ItemI item, String fieldName) {
-            return fields;
-        }
-    }
-
-    private static XnatSubjectdataI subjectItem() {
-        return (XnatSubjectdataI) java.lang.reflect.Proxy.newProxyInstance(
+    private static ItemI subjectItem(final XFTItem xftItem) {
+        return (ItemI) java.lang.reflect.Proxy.newProxyInstance(
                 XnatSubjectdataI.class.getClassLoader(), new Class<?>[]{XnatSubjectdataI.class, ItemI.class},
                 (proxy, method, arguments) -> switch (method.getName()) {
                     case "getId" -> "subject";
                     case "getProject" -> "project";
                     case "getXSIType" -> "xnat:subjectData";
+                    case "getItem" -> xftItem;
+                    case "getCurrentDBVersion" -> xftItem.getCurrentDBVersion();
                     default -> null;
                 });
     }
 
-    @Test
-    void springAopInterceptionRunsAfterSetFields() throws Exception {
-        try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(AopTestConfiguration.class)) {
-            final CustomFieldService service = context.getBean(CustomFieldService.class);
-            final EventService eventService = context.getBean(EventService.class);
-            assertThat(AopUtils.isAopProxy(service)).isTrue();
+    private static XFTItem xftItem(final XFTItem currentDbVersion) {
+        return new XFTItem() {
+            @Override
+            public XFTItem getCurrentDBVersion() {
+                return currentDbVersion;
+            }
 
-            final XnatSubjectdataI item = subjectItem();
-            final UserI user = (UserI) java.lang.reflect.Proxy.newProxyInstance(
-                    UserI.class.getClassLoader(), new Class<?>[]{UserI.class},
-                    (proxy, method, arguments) -> "getUsername".equals(method.getName()) ? "user" : null);
-            final JsonNode fields = mapper.readTree("""
-                    {"12345678-1234-1234-1234-123456789abc":{"field":"new"}}
-                    """);
+            @Override
+            public String getXSIType() {
+                return "xnat:subjectData";
+            }
 
-            service.setFields(user, (ItemI) item, fields);
+            @Override
+            public Object getProperty(final String name) {
+                return switch (name) {
+                    case "ID" -> "subject";
+                    case "project" -> "project";
+                    default -> null;
+                };
+            }
+        };
+    }
 
-            verify(eventService).triggerEvent(org.mockito.ArgumentMatchers.any());
-        }
+    private static UserI user() {
+        return (UserI) java.lang.reflect.Proxy.newProxyInstance(
+                UserI.class.getClassLoader(), new Class<?>[]{UserI.class},
+                (proxy, method, arguments) -> "getUsername".equals(method.getName()) ? "user" : null);
     }
 
     @Test
-    void publishesEventAfterCustomFieldServiceSave() throws Throwable {
+    void saveHelperAdvicePublishesAfterChangedCustomFieldsSave() throws Throwable {
         final EventService eventService = mock(EventService.class);
         final CustomFieldService customFieldService = mock(CustomFieldService.class);
         final CustomFormEventPublisher publisher = new CustomFormEventPublisher(eventService, customFieldService);
-        final XnatSubjectdataI item = subjectItem();
+        final XFTItem oldItem = xftItem(null);
+        final XFTItem savedItem = xftItem(oldItem);
+        final ItemI item = subjectItem(savedItem);
         final JsonNode before = mapper.readTree("""
                 {"12345678-1234-1234-1234-123456789abc":{"field":"old"}}
                 """);
         final JsonNode after = mapper.readTree("""
                 {"12345678-1234-1234-1234-123456789abc":{"field":"new"}}
                 """);
-        final UserI user = (UserI) java.lang.reflect.Proxy.newProxyInstance(
-                UserI.class.getClassLoader(), new Class<?>[]{UserI.class},
-                (proxy, method, arguments) -> "getUsername".equals(method.getName()) ? "user" : null);
+        when(customFieldService.getFields(org.mockito.ArgumentMatchers.any(ItemI.class)))
+                .thenReturn(before, after);
+        final UserI user = user();
         final ProceedingJoinPoint saveCall = mock(ProceedingJoinPoint.class);
-        when(saveCall.getArgs()).thenReturn(new Object[]{user, item, after});
-        when(customFieldService.getFields((ItemI) item)).thenReturn(before);
-        when(saveCall.proceed()).thenReturn(after);
+        when(saveCall.getArgs()).thenReturn(new Object[]{item, user, false, false, null});
 
         publisher.publishAfterCustomFieldsSave(saveCall);
 
-        verify(eventService).triggerEvent(org.mockito.ArgumentMatchers.argThat(event ->
-                "Custom Form (Subject) - Modified".equals(event.getDisplayName()) &&
-                        after.get("12345678-1234-1234-1234-123456789abc").equals(
-                                ((CustomFormModifiedEvent<?>) event).getChangedForms()
-                                        .get("12345678-1234-1234-1234-123456789abc"))));
+        final org.mockito.ArgumentCaptor<EventServiceEvent> eventCaptor =
+                org.mockito.ArgumentCaptor.forClass(EventServiceEvent.class);
+        verify(eventService).triggerEvent(eventCaptor.capture());
+        final EventServiceEvent<?> event = eventCaptor.getValue();
+        assertThat(event.getDisplayName()).isEqualTo("Custom Form (Subject) - Modified");
+        assertThat(((CustomFormModifiedEvent<?>) event).getChangedForms())
+                .containsEntry("12345678-1234-1234-1234-123456789abc",
+                        after.get("12345678-1234-1234-1234-123456789abc"));
     }
 
     @Test
-    void doesNotPublishEventForUnchangedCustomFieldServiceSave() throws Throwable {
+    void doesNotPublishAfterSaveWhenFormDataIsUnchanged() throws Throwable {
         final EventService eventService = mock(EventService.class);
         final CustomFieldService customFieldService = mock(CustomFieldService.class);
         final CustomFormEventPublisher publisher = new CustomFormEventPublisher(eventService, customFieldService);
-        final UserI user = (UserI) java.lang.reflect.Proxy.newProxyInstance(
-                UserI.class.getClassLoader(), new Class<?>[]{UserI.class},
-                (proxy, method, arguments) -> "getUsername".equals(method.getName()) ? "user" : null);
-        final XnatSubjectdataI item = subjectItem();
+        final XFTItem savedItem = xftItem(null);
+        final ItemI item = subjectItem(savedItem);
         final JsonNode fields = mapper.readTree("""
                 {"12345678-1234-1234-1234-123456789abc":{"field":"same"}}
                 """);
+        when(customFieldService.getFields(savedItem)).thenReturn(fields);
         final ProceedingJoinPoint saveCall = mock(ProceedingJoinPoint.class);
-        when(saveCall.getArgs()).thenReturn(new Object[]{user, item, fields});
-        when(customFieldService.getFields((ItemI) item)).thenReturn(fields);
-        when(saveCall.proceed()).thenReturn(fields);
+        when(saveCall.getArgs()).thenReturn(new Object[]{item, user(), false, false, false, false, null});
 
         publisher.publishAfterCustomFieldsSave(saveCall);
 
+        verify(saveCall).proceed();
+        verify(eventService, org.mockito.Mockito.never()).triggerEvent(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void doesNotPublishWhenSaveFails() throws Throwable {
+        final EventService eventService = mock(EventService.class);
+        final CustomFieldService customFieldService = mock(CustomFieldService.class);
+        final CustomFormEventPublisher publisher = new CustomFormEventPublisher(eventService, customFieldService);
+        final XFTItem savedItem = xftItem(null);
+        final ItemI item = subjectItem(savedItem);
+        when(customFieldService.getFields(savedItem)).thenReturn(mapper.createObjectNode());
+        final ProceedingJoinPoint saveCall = mock(ProceedingJoinPoint.class);
+        when(saveCall.getArgs()).thenReturn(new Object[]{item, user(), false, false, false, false, null});
+        when(saveCall.proceed()).thenThrow(new IllegalStateException("save failed"));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> publisher.publishAfterCustomFieldsSave(saveCall))
+                .isInstanceOf(IllegalStateException.class);
         verify(eventService, org.mockito.Mockito.never()).triggerEvent(org.mockito.ArgumentMatchers.any());
     }
 
