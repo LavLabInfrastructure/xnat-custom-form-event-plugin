@@ -1,14 +1,31 @@
 package org.nrg.xnat.customformevent;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import org.nrg.framework.event.XnatEventServiceEvent;
 import java.util.Map;
+
+import org.nrg.framework.event.XnatEventServiceEvent;
+
+import com.fasterxml.jackson.databind.JsonNode;
 
 @XnatEventServiceEvent(name = "CustomFormCrSessionModified")
 public final class CrSessionCustomFormModifiedEvent extends OtherBasetypeCustomFormModifiedEvent<Object> {
+
     private static final long serialVersionUID = 1L;
-    public CrSessionCustomFormModifiedEvent() { super(); }
-    public CrSessionCustomFormModifiedEvent(final Object item, final String username, final String projectId, final String xsiType, final String payloadId, final Map<String, JsonNode> changedForms) { super(item, username, projectId, xsiType, payloadId, changedForms); }
-    @Override public String getDisplayName() { return "Custom Form (CR Session) - Modified"; }
-    @Override public String getDescription() { return "Custom form data on CR Session was modified."; }
+
+    public CrSessionCustomFormModifiedEvent() {
+        super();
+    }
+
+    public CrSessionCustomFormModifiedEvent(final Object item, final String username, final String projectId, final String xsiType, final String payloadId, final Map<String, JsonNode> changedForms) {
+        super(item, username, projectId, xsiType, payloadId, changedForms);
+    }
+
+    @Override
+    public String getDisplayName() {
+        return "Custom Form (CR Session)";
+    }
+
+    @Override
+    public String getDescription() {
+        return "Custom form data on CR Session was modified.";
+    }
 }

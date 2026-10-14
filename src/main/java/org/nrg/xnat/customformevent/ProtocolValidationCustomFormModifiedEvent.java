@@ -1,14 +1,31 @@
 package org.nrg.xnat.customformevent;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import org.nrg.framework.event.XnatEventServiceEvent;
 import java.util.Map;
+
+import org.nrg.framework.event.XnatEventServiceEvent;
+
+import com.fasterxml.jackson.databind.JsonNode;
 
 @XnatEventServiceEvent(name = "CustomFormProtocolValidationModified")
 public final class ProtocolValidationCustomFormModifiedEvent extends OtherBasetypeCustomFormModifiedEvent<Object> {
+
     private static final long serialVersionUID = 1L;
-    public ProtocolValidationCustomFormModifiedEvent() { super(); }
-    public ProtocolValidationCustomFormModifiedEvent(final Object item, final String username, final String projectId, final String xsiType, final String payloadId, final Map<String, JsonNode> changedForms) { super(item, username, projectId, xsiType, payloadId, changedForms); }
-    @Override public String getDisplayName() { return "Custom Form (Protocol Validation) - Modified"; }
-    @Override public String getDescription() { return "Custom form data on Protocol Validation was modified."; }
+
+    public ProtocolValidationCustomFormModifiedEvent() {
+        super();
+    }
+
+    public ProtocolValidationCustomFormModifiedEvent(final Object item, final String username, final String projectId, final String xsiType, final String payloadId, final Map<String, JsonNode> changedForms) {
+        super(item, username, projectId, xsiType, payloadId, changedForms);
+    }
+
+    @Override
+    public String getDisplayName() {
+        return "Custom Form (Protocol Validation)";
+    }
+
+    @Override
+    public String getDescription() {
+        return "Custom form data on Protocol Validation was modified.";
+    }
 }

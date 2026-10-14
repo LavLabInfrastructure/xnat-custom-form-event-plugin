@@ -6,9 +6,24 @@ import java.util.Map;
 
 @XnatEventServiceEvent(name = "CustomFormPetSessionModified")
 public final class PetSessionCustomFormModifiedEvent extends OtherBasetypeCustomFormModifiedEvent<Object> {
+
     private static final long serialVersionUID = 1L;
-    public PetSessionCustomFormModifiedEvent() { super(); }
-    public PetSessionCustomFormModifiedEvent(final Object item, final String username, final String projectId, final String xsiType, final String payloadId, final Map<String, JsonNode> changedForms) { super(item, username, projectId, xsiType, payloadId, changedForms); }
-    @Override public String getDisplayName() { return "Custom Form (PET Session) - Modified"; }
-    @Override public String getDescription() { return "Custom form data on PET Session was modified."; }
+
+    public PetSessionCustomFormModifiedEvent() {
+        super();
+    }
+
+    public PetSessionCustomFormModifiedEvent(final Object item, final String username, final String projectId, final String xsiType, final String payloadId, final Map<String, JsonNode> changedForms) {
+        super(item, username, projectId, xsiType, payloadId, changedForms);
+    }
+
+    @Override
+    public String getDisplayName() {
+        return "Custom Form (PET Session)";
+    }
+
+    @Override
+    public String getDescription() {
+        return "Custom form data on PET Session was modified.";
+    }
 }

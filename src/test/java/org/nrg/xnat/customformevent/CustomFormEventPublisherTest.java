@@ -24,19 +24,26 @@ import static org.mockito.Mockito.when;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class CustomFormEventPublisherTest {
+
     private final ObjectMapper mapper = new ObjectMapper();
 
     private static ItemI subjectItem(final XFTItem xftItem) {
         return (ItemI) java.lang.reflect.Proxy.newProxyInstance(
                 XnatSubjectdataI.class.getClassLoader(), new Class<?>[]{XnatSubjectdataI.class, ItemI.class},
                 (proxy, method, arguments) -> switch (method.getName()) {
-                    case "getId" -> "subject";
-                    case "getProject" -> "project";
-                    case "getXSIType" -> "xnat:subjectData";
-                    case "getItem" -> xftItem;
-                    case "getCurrentDBVersion" -> xftItem.getCurrentDBVersion();
-                    default -> null;
-                });
+            case "getId" ->
+                "subject";
+            case "getProject" ->
+                "project";
+            case "getXSIType" ->
+                "xnat:subjectData";
+            case "getItem" ->
+                xftItem;
+            case "getCurrentDBVersion" ->
+                xftItem.getCurrentDBVersion();
+            default ->
+                null;
+        });
     }
 
     private static XFTItem xftItem(final XFTItem currentDbVersion) {
@@ -54,9 +61,12 @@ class CustomFormEventPublisherTest {
             @Override
             public Object getProperty(final String name) {
                 return switch (name) {
-                    case "ID" -> "subject";
-                    case "project" -> "project";
-                    default -> null;
+                    case "ID" ->
+                        "subject";
+                    case "project" ->
+                        "project";
+                    default ->
+                        null;
                 };
             }
         };
@@ -90,11 +100,11 @@ class CustomFormEventPublisherTest {
 
         publisher.publishAfterCustomFieldsSave(saveCall);
 
-        final org.mockito.ArgumentCaptor<EventServiceEvent> eventCaptor =
-                org.mockito.ArgumentCaptor.forClass(EventServiceEvent.class);
+        final org.mockito.ArgumentCaptor<EventServiceEvent> eventCaptor
+                = org.mockito.ArgumentCaptor.forClass(EventServiceEvent.class);
         verify(eventService).triggerEvent(eventCaptor.capture());
         final EventServiceEvent<?> event = eventCaptor.getValue();
-        assertThat(event.getDisplayName()).isEqualTo("Custom Form (Subject) - Modified");
+        assertThat(event.getDisplayName()).isEqualTo("Custom Form (Subject)");
         assertThat(((CustomFormModifiedEvent<?>) event).getChangedForms())
                 .containsEntry("12345678-1234-1234-1234-123456789abc",
                         after.get("12345678-1234-1234-1234-123456789abc"));
@@ -188,10 +198,10 @@ class CustomFormEventPublisherTest {
         final EventServiceEvent<?> experimentEvent = CustomFormModifiedEventFactory.create(experiment, "user", changedForms);
         final EventServiceEvent<?> scanEvent = CustomFormModifiedEventFactory.create(scan, "user", changedForms);
 
-        assertThat(projectEvent.getDisplayName()).isEqualTo("Custom Form (Project) - Modified");
-        assertThat(subjectEvent.getDisplayName()).isEqualTo("Custom Form (Subject) - Modified");
-        assertThat(experimentEvent.getDisplayName()).isEqualTo("Custom Form (MR Session) - Modified");
-        assertThat(scanEvent.getDisplayName()).isEqualTo("Custom Form (Scan) - Modified");
+        assertThat(projectEvent.getDisplayName()).isEqualTo("Custom Form (Project)");
+        assertThat(subjectEvent.getDisplayName()).isEqualTo("Custom Form (Subject)");
+        assertThat(experimentEvent.getDisplayName()).isEqualTo("Custom Form (MR Session)");
+        assertThat(scanEvent.getDisplayName()).isEqualTo("Custom Form (Scan)");
         assertThat(projectEvent.getPayloadId()).isEqualTo("project");
         assertThat(subjectEvent.getPayloadId()).isEqualTo("subject");
         assertThat(experimentEvent.getPayloadId()).isEqualTo("experiment");
@@ -215,18 +225,26 @@ class CustomFormEventPublisherTest {
         when(subject.getId()).thenReturn("subject");
 
         final Map<String, String> typesAndNames = Map.ofEntries(
-                Map.entry("xnat:qcAssessmentData", "Custom Form (Auto QC) - Modified"),
-                Map.entry("xnat:crSessionData", "Custom Form (CR Session) - Modified"),
-                Map.entry("xnat:ctSessionData", "Custom Form (CT Session) - Modified"),
-                Map.entry("xnat:qcManualAssessorData", "Custom Form (Manual QC) - Modified"),
-                Map.entry("xnat:mrSessionData", "Custom Form (MR Session) - Modified"),
-                Map.entry("xnat:petMRSessionData", "Custom Form (PET MR Session) - Modified"),
-                Map.entry("xnat:petSessionData", "Custom Form (PET Session) - Modified"),
-                Map.entry("xnat:projectData", "Custom Form (Project) - Modified"),
-                Map.entry("val:protocolData", "Custom Form (Protocol Validation) - Modified"),
-                Map.entry("icr:roiCollectionData", "Custom Form (ROI Collection) - Modified"),
-                Map.entry("xnat:subjectData", "Custom Form (Subject) - Modified"),
-                Map.entry("xsync:assessorData", "Custom Form (XSync Assessor Data) - Modified"));
+                Map.entry("xnat:qcAssessmentData", "Custom Form (Auto QC)"),
+                Map.entry("xnat:crSessionData", "Custom Form (CR Session) - Modi
+                Map.entry("xnat:ctSessionData", "Custom Form (CT Session) -,
+                Map.entry("xnat:qcManualAssessorData", "Custom Form  - Modified")
+        ,
+                Map.entry("xnat:mrSessionData", "Custom Form (MR Session) - Modi
+                Map.entry("xnat:petMRSessionData", "Custom Form (PET MR Session)")
+        ,
+                Map.entry("xnat:petSessionData", "Custom Form (PET Sodified")
+        ,
+                Map.entry("xnat:projectData", "Custom Form (Project) - Modified")
+        ,
+                Map.entry("val:protocolData", "Custom Form (Protocol Validation) - Modified")
+        ,
+                Map.entry("icr:roiCollectionData", "Custom Form (ROI Collection) - Modified")
+        ,
+                Map.entry("xnat:subjectData", "Custom Form (Subject) - Modified")
+        ,
+                Map.entry("xsync:assessorData", "Custom Form (XSync Assessor Data) - Modified")
+        );
 
         typesAndNames.forEach((xsiType, displayName) -> {
             final Object item;

@@ -2,18 +2,18 @@
 
 Publishes XNAT Event Service events after custom form data changes on supported XNAT data items in XNAT 1.10.x. It registers distinct subscription-visible triggers for the Event Service basetypes:
 
-- `Custom Form (Auto QC) - Modified`
-- `Custom Form (CR Session) - Modified`
-- `Custom Form (CT Session) - Modified`
-- `Custom Form (Manual QC) - Modified`
-- `Custom Form (MR Session) - Modified`
-- `Custom Form (PET MR Session) - Modified`
-- `Custom Form (PET Session) - Modified`
-- `Custom Form (Project) - Modified`
-- `Custom Form (Protocol Validation) - Modified`
-- `Custom Form (ROI Collection) - Modified`
-- `Custom Form (Subject) - Modified`
-- `Custom Form (XSync Assessor Data) - Modified`
+- `Custom Form (Auto QC)`
+- `Custom Form (CR Session)`
+- `Custom Form (CT Session)`
+- `Custom Form (Manual QC)`
+- `Custom Form (MR Session)`
+- `Custom Form (PET MR Session)`
+- `Custom Form (PET Session)`
+- `Custom Form (Project)`
+- `Custom Form (Protocol Validation)`
+- `Custom Form (ROI Collection)`
+- `Custom Form (Subject)`
+- `Custom Form (XSync Assessor Data)`
 
 The XSync trigger accepts the generic `xsync:assessorData` type when provided by an installed XSync extension; the model is not part of stock XNAT.
 
