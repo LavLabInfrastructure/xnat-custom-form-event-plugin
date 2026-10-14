@@ -1,6 +1,7 @@
 package org.nrg.xnat.customformevent;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.nrg.xnat.eventservice.events.AbstractEventServiceEvent;
 import org.nrg.xft.XFTItem;
 import org.nrg.xft.search.ItemSearch;
@@ -17,6 +18,7 @@ public abstract class CustomFormModifiedEvent<T> extends AbstractEventServiceEve
     private static final long serialVersionUID = 1L;
     private static final Logger LOGGER = LoggerFactory.getLogger(CustomFormModifiedEvent.class);
     private transient T eventObject;
+    private JsonNode filterablePayload;
 
     protected CustomFormModifiedEvent() {
         super();
@@ -38,6 +40,9 @@ public abstract class CustomFormModifiedEvent<T> extends AbstractEventServiceEve
     @Override
     @SuppressWarnings("unchecked")
     public final T getObject(final UserI user) {
+        if (filterablePayload != null) {
+            return (T) filterablePayload;
+        }
         if (eventObject != null) {
             return eventObject;
         }
@@ -72,8 +77,14 @@ public abstract class CustomFormModifiedEvent<T> extends AbstractEventServiceEve
         return changedForms;
     }
 
+    final void setFilterablePayload(final JsonNode payload) {
+        if (payload == null || !payload.isObject()) {
+            throw new IllegalArgumentException("The filterable custom form payload must be a JSON object");
+        }
+        filterablePayload = ((ObjectNode) payload).deepCopy();
+    }
+
     private enum Status {
         MODIFIED
     }
 }
-

@@ -21,7 +21,32 @@ Only changed JSON object values under UUID-shaped form IDs create events; unchan
 
 ## Event payload
 
-Each event carries the XNAT object, submitting user, project context, and `changedForms`: a map from form ID to the resulting JSON data. Removed forms are represented by a JSON `null` value. Events are triggered through XNAT's Event Service and appear as subscription triggers after the plugin is installed and XNAT is restarted.
+Each event's filterable payload retains the serialized XNAT object fields and adds a `customForms` array identifying the forms changed by the save. Each entry has a `uid` and, when the form definition is available, its `name` (the Form.io title). For example:
+
+```json
+{
+  "id": "XNAT_E05998",
+  "xsiType": "xnat:mrSessionData",
+  "customForms": [
+    {
+      "uid": "81902a73-23b2-4bfb-a5aa-779997fae683",
+      "name": "scan-map-mapped_sessions"
+    }
+  ]
+}
+```
+
+Use these fields in an Event Payload Filter to select events by form UUID or name:
+
+```text
+("81902a73-23b2-4bfb-a5aa-779997fae683" in @.customForms[*].uid)
+```
+
+```text
+("scan-map-mapped_sessions" in @.customForms[*].name)
+```
+
+The event instance also exposes `changedForms` to Java consumers: a map from form ID to the resulting JSON data, with removed forms represented by JSON `null`. This map is separate from the filterable JSON payload. Events are triggered through XNAT's Event Service and appear as subscription triggers after the plugin is installed and XNAT is restarted.
 
 ## Build
 

@@ -38,6 +38,14 @@ final class CustomFormModifiedEventFactory {
                 (eventItem == null ? "null" : eventItem.getClass().getName()));
     }
 
+    static CustomFormModifiedEvent<?> create(final Object item, final String username,
+                                              final Map<String, JsonNode> changedForms,
+                                              final JsonNode filterablePayload) {
+        final CustomFormModifiedEvent<?> event = create(item, username, changedForms);
+        event.setFilterablePayload(filterablePayload);
+        return event;
+    }
+
     private static CustomFormModifiedEvent<?> createExperimentEvent(final XnatExperimentdataI experiment,
                                                                       final String username,
                                                                       final Map<String, JsonNode> changedForms) {

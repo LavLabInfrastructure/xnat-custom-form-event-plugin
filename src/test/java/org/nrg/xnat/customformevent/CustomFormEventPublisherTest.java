@@ -2,6 +2,8 @@ package org.nrg.xnat.customformevent;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.nrg.xnat.customforms.service.CustomVariableFormService;
+import org.nrg.xnat.entities.CustomVariableForm;
 import org.junit.jupiter.api.Test;
 import org.nrg.xdat.model.XnatExperimentdataI;
 import org.nrg.xdat.model.XnatImagescandataI;
@@ -12,10 +14,13 @@ import org.nrg.xft.ItemI;
 import org.nrg.xft.XFTItem;
 import org.nrg.xft.security.UserI;
 import org.nrg.xnat.eventservice.events.EventServiceEvent;
+import org.nrg.xnat.eventservice.model.xnat.XnatModelObject;
+import org.nrg.xnat.eventservice.services.EventServiceComponentManager;
 import org.nrg.xnat.eventservice.services.EventService;
 import org.nrg.xnat.services.customfields.CustomFieldService;
 
 import java.util.Map;
+import java.util.UUID;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -82,16 +87,34 @@ class CustomFormEventPublisherTest {
     void saveHelperAdvicePublishesAfterChangedCustomFieldsSave() throws Throwable {
         final EventService eventService = mock(EventService.class);
         final CustomFieldService customFieldService = mock(CustomFieldService.class);
-        final CustomFormEventPublisher publisher = new CustomFormEventPublisher(eventService, customFieldService);
+        final EventServiceComponentManager componentManager = mock(EventServiceComponentManager.class);
+        final CustomVariableFormService formService = mock(CustomVariableFormService.class);
+        final CustomFormEventPublisher publisher = new CustomFormEventPublisher(eventService, customFieldService,
+                componentManager, mapper, formService);
         final XFTItem oldItem = xftItem(null);
         final XFTItem savedItem = xftItem(oldItem);
         final ItemI item = subjectItem(savedItem);
         final JsonNode before = mapper.readTree("""
-                {"12345678-1234-1234-1234-123456789abc":{"field":"old"}}
+                {"81902a73-23b2-4bfb-a5aa-779997fae683":{"field":"old"}}
                 """);
         final JsonNode after = mapper.readTree("""
-                {"12345678-1234-1234-1234-123456789abc":{"field":"new"}}
+                {"81902a73-23b2-4bfb-a5aa-779997fae683":{"field":"new"}}
                 """);
+        final XnatModelObject modelObject = new XnatModelObject() {
+            @Override
+            public XFTItem getXftItem(final UserI ignored) {
+                return null;
+            }
+        };
+        modelObject.setId("subject");
+        modelObject.setLabel("subject");
+        modelObject.setXsiType("xnat:subjectData");
+        modelObject.setUri("/archive/subjects/subject");
+        when(componentManager.getModelObject(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(UserI.class)))
+                .thenReturn(modelObject);
+        final CustomVariableForm form = new CustomVariableForm();
+        form.setFormIOJsonDefinition(mapper.readTree("{\"title\":\"scan-map-mapped_sessions\"}"));
+        when(formService.findByUuid(UUID.fromString("81902a73-23b2-4bfb-a5aa-779997fae683"))).thenReturn(form);
         when(customFieldService.getFields(org.mockito.ArgumentMatchers.any(ItemI.class)))
                 .thenReturn(before, after);
         final UserI user = user();
@@ -106,15 +129,24 @@ class CustomFormEventPublisherTest {
         final EventServiceEvent<?> event = eventCaptor.getValue();
         assertThat(event.getDisplayName()).isEqualTo("Custom Form (Subject)");
         assertThat(((CustomFormModifiedEvent<?>) event).getChangedForms())
-                .containsEntry("12345678-1234-1234-1234-123456789abc",
-                        after.get("12345678-1234-1234-1234-123456789abc"));
+                .containsEntry("81902a73-23b2-4bfb-a5aa-779997fae683",
+                        after.get("81902a73-23b2-4bfb-a5aa-779997fae683"));
+        final Object eventPayload = ((CustomFormModifiedEvent<?>) event).getObject(user());
+        assertThat(eventPayload).isInstanceOf(JsonNode.class);
+        final JsonNode payload = (JsonNode) eventPayload;
+        assertThat(payload.path("id").asText()).isEqualTo("subject");
+        assertThat(payload.path("customForms").get(0).path("uid").asText())
+                .isEqualTo("81902a73-23b2-4bfb-a5aa-779997fae683");
+        assertThat(payload.path("customForms").get(0).path("name").asText())
+                .isEqualTo("scan-map-mapped_sessions");
     }
 
     @Test
     void doesNotPublishAfterSaveWhenFormDataIsUnchanged() throws Throwable {
         final EventService eventService = mock(EventService.class);
         final CustomFieldService customFieldService = mock(CustomFieldService.class);
-        final CustomFormEventPublisher publisher = new CustomFormEventPublisher(eventService, customFieldService);
+        final CustomFormEventPublisher publisher = new CustomFormEventPublisher(eventService, customFieldService,
+                mock(EventServiceComponentManager.class), mapper, mock(CustomVariableFormService.class));
         final XFTItem savedItem = xftItem(null);
         final ItemI item = subjectItem(savedItem);
         final JsonNode fields = mapper.readTree("""
@@ -134,7 +166,8 @@ class CustomFormEventPublisherTest {
     void doesNotPublishWhenSaveFails() throws Throwable {
         final EventService eventService = mock(EventService.class);
         final CustomFieldService customFieldService = mock(CustomFieldService.class);
-        final CustomFormEventPublisher publisher = new CustomFormEventPublisher(eventService, customFieldService);
+        final CustomFormEventPublisher publisher = new CustomFormEventPublisher(eventService, customFieldService,
+                mock(EventServiceComponentManager.class), mapper, mock(CustomVariableFormService.class));
         final XFTItem savedItem = xftItem(null);
         final ItemI item = subjectItem(savedItem);
         when(customFieldService.getFields(savedItem)).thenReturn(mapper.createObjectNode());

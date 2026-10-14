@@ -1,31 +1,51 @@
 package org.nrg.xnat.customformevent;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.NullNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.nrg.xdat.base.BaseElement;
+import org.nrg.xnat.customforms.service.CustomVariableFormService;
+import org.nrg.xnat.entities.CustomVariableForm;
+import org.nrg.xnat.eventservice.model.xnat.XnatModelObject;
+import org.nrg.xnat.eventservice.services.EventService;
+import org.nrg.xnat.eventservice.services.EventServiceComponentManager;
 import org.nrg.xft.ItemI;
 import org.nrg.xft.XFTItem;
 import org.nrg.xft.security.UserI;
-import org.nrg.xnat.eventservice.services.EventService;
 import org.nrg.xnat.services.customfields.CustomFieldService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.UUID;
 
 @Aspect
 public class CustomFormEventPublisher {
+    private static final Logger LOGGER = LoggerFactory.getLogger(CustomFormEventPublisher.class);
     private final EventService eventService;
     private final CustomFieldService customFieldService;
+    private final EventServiceComponentManager eventServiceComponentManager;
+    private final ObjectMapper objectMapper;
+    private final CustomVariableFormService customVariableFormService;
 
     public CustomFormEventPublisher(final EventService eventService,
-                                    final CustomFieldService customFieldService) {
+                                    final CustomFieldService customFieldService,
+                                    final EventServiceComponentManager eventServiceComponentManager,
+                                    final ObjectMapper objectMapper,
+                                    final CustomVariableFormService customVariableFormService) {
         this.eventService = eventService;
         this.customFieldService = customFieldService;
+        this.eventServiceComponentManager = eventServiceComponentManager;
+        this.objectMapper = objectMapper;
+        this.customVariableFormService = customVariableFormService;
     }
 
     @Around("execution(* org.nrg.xft.utils.SaveItemHelper.save(org.nrg.xft.ItemI, org.nrg.xft.security.UserI, boolean, boolean, org.nrg.xft.event.EventMetaI))")
@@ -41,9 +61,37 @@ public class CustomFormEventPublisher {
         if (!changedForms.isEmpty()) {
             final Object eventItem = BaseElement.GetGeneratedItem(item);
             eventService.triggerEvent(CustomFormModifiedEventFactory.create(
-                    eventItem == null ? item : eventItem, user.getUsername(), changedForms));
+                    eventItem == null ? item : eventItem, user.getUsername(), changedForms,
+                    createFilterablePayload(eventItem == null ? item : eventItem, user, changedForms.keySet())));
         }
         return result;
+    }
+
+    private JsonNode createFilterablePayload(final Object item, final UserI user,
+                                             final Set<String> changedFormIds) {
+        final XnatModelObject modelObject = eventServiceComponentManager.getModelObject(item, user);
+        final Object serializedObject = modelObject == null ? item : modelObject;
+        final JsonNode serializedPayload = objectMapper.valueToTree(serializedObject);
+        if (!serializedPayload.isObject()) {
+            throw new IllegalStateException("Serialized XNAT event payload is not a JSON object");
+        }
+
+        final ObjectNode payload = ((ObjectNode) serializedPayload).deepCopy();
+        final ArrayNode customForms = payload.putArray("customForms");
+        for (final String formId : changedFormIds) {
+            final ObjectNode formIdentity = customForms.addObject();
+            formIdentity.put("uid", formId);
+            final CustomVariableForm form = customVariableFormService.findByUuid(UUID.fromString(formId));
+            if (form == null) {
+                LOGGER.warn("No custom form definition found for form UUID {}", formId);
+            } else {
+                final String formName = form.title();
+                if (formName != null) {
+                    formIdentity.put("name", formName);
+                }
+            }
+        }
+        return payload;
     }
 
     private JsonNode getCustomFields(final ItemI item) throws Exception {
