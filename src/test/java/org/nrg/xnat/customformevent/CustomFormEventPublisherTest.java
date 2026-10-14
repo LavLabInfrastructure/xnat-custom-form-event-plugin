@@ -226,24 +226,17 @@ class CustomFormEventPublisherTest {
 
         final Map<String, String> typesAndNames = Map.ofEntries(
                 Map.entry("xnat:qcAssessmentData", "Custom Form (Auto QC)"),
-                Map.entry("xnat:crSessionData", "Custom Form (CR Session) - Modi
-                Map.entry("xnat:ctSessionData", "Custom Form (CT Session) -,
-                Map.entry("xnat:qcManualAssessorData", "Custom Form  - Modified")
-        ,
-                Map.entry("xnat:mrSessionData", "Custom Form (MR Session) - Modi
-                Map.entry("xnat:petMRSessionData", "Custom Form (PET MR Session)")
-        ,
-                Map.entry("xnat:petSessionData", "Custom Form (PET Sodified")
-        ,
-                Map.entry("xnat:projectData", "Custom Form (Project) - Modified")
-        ,
-                Map.entry("val:protocolData", "Custom Form (Protocol Validation) - Modified")
-        ,
-                Map.entry("icr:roiCollectionData", "Custom Form (ROI Collection) - Modified")
-        ,
-                Map.entry("xnat:subjectData", "Custom Form (Subject) - Modified")
-        ,
-                Map.entry("xsync:assessorData", "Custom Form (XSync Assessor Data) - Modified")
+                Map.entry("xnat:crSessionData", "Custom Form (CR Session)"),
+                Map.entry("xnat:ctSessionData", "Custom Form (CT Session)"),
+                Map.entry("xnat:qcManualAssessorData", "Custom Form (Manual QC)"),
+                Map.entry("xnat:mrSessionData", "Custom Form (MR Session)"),
+                Map.entry("xnat:petMRSessionData", "Custom Form (PET MR Session)"),
+                Map.entry("xnat:petSessionData", "Custom Form (PET Session)"),
+                Map.entry("xnat:projectData", "Custom Form (Project)"),
+                Map.entry("val:protocolData", "Custom Form (Protocol Validation)"),
+                Map.entry("icr:roiCollectionData", "Custom Form (ROI Collection)"),
+                Map.entry("xnat:subjectData", "Custom Form (Subject)"),
+                Map.entry("xsync:assessorData", "Custom Form (XSync Assessor Data)")
         );
 
         typesAndNames.forEach((xsiType, displayName) -> {
