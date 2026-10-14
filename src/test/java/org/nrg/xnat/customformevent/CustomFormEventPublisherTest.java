@@ -197,6 +197,10 @@ class CustomFormEventPublisherTest {
         assertThat(experimentEvent.getPayloadId()).isEqualTo("experiment");
         assertThat(scanEvent.getPayloadId()).isEqualTo("42");
         assertThat(experimentEvent.getObjectClass()).isEqualTo(experiment.getClass());
+        assertThat(((CustomFormModifiedEvent<?>) experimentEvent).getObject(user())).isSameAs(experiment);
+        assertThat(((CustomFormModifiedEvent<?>) projectEvent).getObject(user())).isSameAs(project);
+        assertThat(((CustomFormModifiedEvent<?>) subjectEvent).getObject(user())).isSameAs(subject);
+        assertThat(((CustomFormModifiedEvent<?>) scanEvent).getObject(user())).isSameAs(scan);
     }
 
     @Test
@@ -236,6 +240,7 @@ class CustomFormEventPublisherTest {
             }
             final EventServiceEvent<?> event = CustomFormModifiedEventFactory.create(item, "user", changedForms);
             assertThat(event.getDisplayName()).isEqualTo(displayName);
+            assertThat(((CustomFormModifiedEvent<?>) event).getObject(user())).isSameAs(item);
         });
     }
 
