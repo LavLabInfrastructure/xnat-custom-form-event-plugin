@@ -40,9 +40,9 @@ final class CustomFormModifiedEventFactory {
 
     static CustomFormModifiedEvent<?> create(final Object item, final String username,
                                               final Map<String, JsonNode> changedForms,
-                                              final JsonNode filterablePayload) {
+                                              final JsonNode customForms) {
         final CustomFormModifiedEvent<?> event = create(item, username, changedForms);
-        event.setFilterablePayload(filterablePayload);
+        event.setCustomForms(customForms);
         return event;
     }
 

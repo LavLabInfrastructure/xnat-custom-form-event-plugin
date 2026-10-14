@@ -21,7 +21,7 @@ Only changed JSON object values under UUID-shaped form IDs create events; unchan
 
 ## Event payload
 
-Each event's filterable payload retains the serialized XNAT object fields and adds a `customForms` array identifying the forms changed by the save. Each entry has a `uid` and, when the form definition is available, its `name` (the Form.io title). For example:
+Each event's filterable payload retains the serialized XNAT object fields and adds a `customForms` array identifying the forms changed by the save. The event continues to expose the original typed XNAT object to Event Service actions. Each `customForms` entry has a `uid` and, when the form definition is available, its `name` (the Form.io title). For example:
 
 ```json
 {

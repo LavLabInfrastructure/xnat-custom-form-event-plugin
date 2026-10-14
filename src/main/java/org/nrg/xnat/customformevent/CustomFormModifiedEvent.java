@@ -1,7 +1,6 @@
 package org.nrg.xnat.customformevent;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.nrg.xnat.eventservice.events.AbstractEventServiceEvent;
 import org.nrg.xft.XFTItem;
 import org.nrg.xft.search.ItemSearch;
@@ -18,7 +17,7 @@ public abstract class CustomFormModifiedEvent<T> extends AbstractEventServiceEve
     private static final long serialVersionUID = 1L;
     private static final Logger LOGGER = LoggerFactory.getLogger(CustomFormModifiedEvent.class);
     private transient T eventObject;
-    private JsonNode filterablePayload;
+    private JsonNode customForms;
 
     protected CustomFormModifiedEvent() {
         super();
@@ -40,10 +39,8 @@ public abstract class CustomFormModifiedEvent<T> extends AbstractEventServiceEve
     @Override
     @SuppressWarnings("unchecked")
     public final T getObject(final UserI user) {
-        if (filterablePayload != null) {
-            return (T) filterablePayload;
-        }
         if (eventObject != null) {
+            CustomFormPayloadModule.prepare(xsiType, customForms);
             return eventObject;
         }
         if (xsiType == null || payloadId == null) {
@@ -56,7 +53,9 @@ public abstract class CustomFormModifiedEvent<T> extends AbstractEventServiceEve
                 LOGGER.warn("No XNAT item found for custom form event payload {} ({})", payloadId, xsiType);
                 return null;
             }
-            return (T) org.nrg.xdat.base.BaseElement.GetGeneratedItem(item);
+            final T generatedItem = (T) org.nrg.xdat.base.BaseElement.GetGeneratedItem(item);
+            CustomFormPayloadModule.prepare(xsiType, customForms);
+            return generatedItem;
         } catch (final Exception exception) {
             LOGGER.warn("Unable to reload custom form event payload {} ({})", payloadId, xsiType, exception);
             return null;
@@ -77,11 +76,11 @@ public abstract class CustomFormModifiedEvent<T> extends AbstractEventServiceEve
         return changedForms;
     }
 
-    final void setFilterablePayload(final JsonNode payload) {
-        if (payload == null || !payload.isObject()) {
-            throw new IllegalArgumentException("The filterable custom form payload must be a JSON object");
+    final void setCustomForms(final JsonNode payload) {
+        if (payload == null || !payload.isArray()) {
+            throw new IllegalArgumentException("The custom form identities must be a JSON array");
         }
-        filterablePayload = ((ObjectNode) payload).deepCopy();
+        customForms = payload.deepCopy();
     }
 
     private enum Status {
