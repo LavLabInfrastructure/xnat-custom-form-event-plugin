@@ -57,7 +57,8 @@ public class CustomFormEventPublisher {
             final Object eventItem = BaseElement.GetGeneratedItem(item);
             eventService.triggerEvent(CustomFormModifiedEventFactory.create(
                     eventItem == null ? item : eventItem, user.getUsername(), changedForms,
-                    createCustomForms(changedForms.keySet())));
+                    createCustomForms(changedForms.keySet()),
+                    findChangedFields(oldFields, newFields, changedForms.keySet())));
         }
         return result;
     }
@@ -122,6 +123,34 @@ public class CustomFormEventPublisher {
             }
         }
         return changedForms;
+    }
+
+    static ArrayNode findChangedFields(final JsonNode oldFields, final JsonNode newFields,
+                                       final Set<String> changedFormIds) {
+        final Set<String> changedFieldNames = new TreeSet<>();
+        for (final String formId : changedFormIds) {
+            final JsonNode oldForm = oldFields == null ? null : oldFields.get(formId);
+            final JsonNode newForm = newFields == null ? null : newFields.get(formId);
+            final Set<String> fieldNames = new TreeSet<>();
+            if (oldForm != null && oldForm.isObject()) {
+                oldForm.fieldNames().forEachRemaining(fieldNames::add);
+            }
+            if (newForm != null && newForm.isObject()) {
+                newForm.fieldNames().forEachRemaining(fieldNames::add);
+            }
+
+            for (final String fieldName : fieldNames) {
+                final JsonNode oldValue = oldForm == null || !oldForm.isObject() ? null : oldForm.get(fieldName);
+                final JsonNode newValue = newForm == null || !newForm.isObject() ? null : newForm.get(fieldName);
+                if (oldValue == null || newValue == null || !oldValue.equals(newValue)) {
+                    changedFieldNames.add(fieldName);
+                }
+            }
+        }
+
+        final ArrayNode changedFields = JsonNodeFactory.instance.arrayNode();
+        changedFieldNames.forEach(changedFields::add);
+        return changedFields;
     }
 
     private static boolean isFormData(final String fieldName, final JsonNode value) {

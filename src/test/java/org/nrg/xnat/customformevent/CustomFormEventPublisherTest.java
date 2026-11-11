@@ -131,7 +131,35 @@ class CustomFormEventPublisherTest {
                 .isEqualTo("81902a73-23b2-4bfb-a5aa-779997fae683");
         assertThat(payload.path("customForms").get(0).path("name").asText())
                 .isEqualTo("scan-map-mapped_sessions");
+        assertThat(payload.path("changedFields")).isEqualTo(mapper.readTree("[\"field\"]"));
         assertThat(mapper.valueToTree(modelObject).has("customForms")).isFalse();
+    }
+
+    @Test
+    void changedFieldsIncludesAddedChangedAndRemovedKeysAcrossChangedForms() throws Exception {
+        final JsonNode before = mapper.readTree("""
+                {
+                  "12345678-1234-1234-1234-123456789abc": {
+                    "t1ScanNumber": "3",
+                    "unchanged": "same",
+                    "removed": "value"
+                  }
+                }
+                """);
+        final JsonNode after = mapper.readTree("""
+                {
+                  "12345678-1234-1234-1234-123456789abc": {
+                    "t1ScanNumber": "7",
+                    "unchanged": "same",
+                    "added": "value"
+                  }
+                }
+                """);
+
+        final Map<String, JsonNode> changedForms = CustomFormEventPublisher.findChangedForms(before, after);
+
+        assertThat(CustomFormEventPublisher.findChangedFields(before, after, changedForms.keySet()))
+                .isEqualTo(mapper.readTree("[\"added\",\"removed\",\"t1ScanNumber\"]"));
     }
 
     @Test

@@ -21,7 +21,7 @@ Only changed JSON object values under UUID-shaped form IDs create events; unchan
 
 ## Event payload
 
-Each event's filterable payload retains the serialized XNAT object fields and adds a `customForms` array identifying the forms changed by the save. The event continues to expose the original typed XNAT object to Event Service actions. Each `customForms` entry has a `uid` and, when the form definition is available, its `name` (the Form.io title). For example:
+Each event's filterable payload retains the serialized XNAT object fields and adds a `customForms` array identifying the forms changed by the save and a `changedFields` array containing the changed top-level field keys. Added, changed, and removed keys are included; keys are unique across all changed forms. The event continues to expose the original typed XNAT object to Event Service actions. Each `customForms` entry has a `uid` and, when the form definition is available, its `name` (the Form.io title). For example:
 
 ```json
 {
@@ -32,6 +32,9 @@ Each event's filterable payload retains the serialized XNAT object fields and ad
       "uid": "81902a73-23b2-4bfb-a5aa-779997fae683",
       "name": "scan-map-mapped_sessions"
     }
+  ],
+  "changedFields": [
+    "scanMap_mapped_sessions_t1ScanNumber"
   ]
 }
 ```
@@ -44,6 +47,14 @@ Use these fields in an Event Payload Filter to select events by form UUID or nam
 
 ```text
 ("scan-map-mapped_sessions" in @.customForms[*].name)
+```
+
+Combine the form and field conditions to trigger only when the T1 scan field changes:
+
+```text
+("81902a73-23b2-4bfb-a5aa-779997fae683" in @.customForms[*].uid)
+&&
+("scanMap_mapped_sessions_t1ScanNumber" in @.changedFields[*])
 ```
 
 The event instance also exposes `changedForms` to Java consumers: a map from form ID to the resulting JSON data, with removed forms represented by JSON `null`. This map is separate from the filterable JSON payload. Events are triggered through XNAT's Event Service and appear as subscription triggers after the plugin is installed and XNAT is restarted.

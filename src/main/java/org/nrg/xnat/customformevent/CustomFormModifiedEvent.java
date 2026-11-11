@@ -1,6 +1,7 @@
 package org.nrg.xnat.customformevent;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import org.nrg.xnat.eventservice.events.AbstractEventServiceEvent;
 import org.nrg.xft.XFTItem;
 import org.nrg.xft.search.ItemSearch;
@@ -18,11 +19,13 @@ public abstract class CustomFormModifiedEvent<T> extends AbstractEventServiceEve
     private static final Logger LOGGER = LoggerFactory.getLogger(CustomFormModifiedEvent.class);
     private transient T eventObject;
     private JsonNode customForms;
+    private JsonNode changedFields;
 
     protected CustomFormModifiedEvent() {
         super();
         eventObject = null;
         changedForms = Collections.emptyMap();
+        changedFields = JsonNodeFactory.instance.arrayNode();
     }
 
     protected CustomFormModifiedEvent(final T item, final String user, final String projectId,
@@ -32,6 +35,7 @@ public abstract class CustomFormModifiedEvent<T> extends AbstractEventServiceEve
         this.eventObject = item;
         this.payloadId = payloadId;
         this.changedForms = Collections.unmodifiableMap(new LinkedHashMap<>(changedForms));
+        changedFields = JsonNodeFactory.instance.arrayNode();
     }
 
     private final Map<String, JsonNode> changedForms;
@@ -40,7 +44,7 @@ public abstract class CustomFormModifiedEvent<T> extends AbstractEventServiceEve
     @SuppressWarnings("unchecked")
     public final T getObject(final UserI user) {
         if (eventObject != null) {
-            CustomFormPayloadModule.prepare(xsiType, customForms);
+            CustomFormPayloadModule.prepare(xsiType, customForms, changedFields);
             return eventObject;
         }
         if (xsiType == null || payloadId == null) {
@@ -54,7 +58,7 @@ public abstract class CustomFormModifiedEvent<T> extends AbstractEventServiceEve
                 return null;
             }
             final T generatedItem = (T) org.nrg.xdat.base.BaseElement.GetGeneratedItem(item);
-            CustomFormPayloadModule.prepare(xsiType, customForms);
+            CustomFormPayloadModule.prepare(xsiType, customForms, changedFields);
             return generatedItem;
         } catch (final Exception exception) {
             LOGGER.warn("Unable to reload custom form event payload {} ({})", payloadId, xsiType, exception);
@@ -81,6 +85,13 @@ public abstract class CustomFormModifiedEvent<T> extends AbstractEventServiceEve
             throw new IllegalArgumentException("The custom form identities must be a JSON array");
         }
         customForms = payload.deepCopy();
+    }
+
+    final void setChangedFields(final JsonNode payload) {
+        if (payload == null || !payload.isArray()) {
+            throw new IllegalArgumentException("The changed custom form fields must be a JSON array");
+        }
+        changedFields = payload.deepCopy();
     }
 
     private enum Status {

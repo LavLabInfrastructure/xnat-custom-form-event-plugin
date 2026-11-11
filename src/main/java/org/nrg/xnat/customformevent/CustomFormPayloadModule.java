@@ -39,13 +39,13 @@ final class CustomFormPayloadModule extends SimpleModule {
         });
     }
 
-    static void prepare(final String xsiType, final JsonNode customForms) {
+    static void prepare(final String xsiType, final JsonNode customForms, final JsonNode changedFields) {
         if (xsiType != null && customForms != null && customForms.isArray() && !customForms.isEmpty()) {
-            PAYLOAD_CONTEXT.set(new PayloadContext(xsiType, customForms));
+            PAYLOAD_CONTEXT.set(new PayloadContext(xsiType, customForms, changedFields));
         }
     }
 
-    private record PayloadContext(String xsiType, JsonNode customForms) {
+    private record PayloadContext(String xsiType, JsonNode customForms, JsonNode changedFields) {
     }
 
     private static final class CustomFormPayloadSerializer extends JsonSerializer<Object> {
@@ -125,6 +125,8 @@ final class CustomFormPayloadModule extends SimpleModule {
             }
             generator.writeFieldName("customForms");
             generator.writeTree(context.customForms());
+            generator.writeFieldName("changedFields");
+            generator.writeTree(context.changedFields());
             if (typeSerializer == null) {
                 generator.writeEndObject();
             } else {
