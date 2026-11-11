@@ -88,8 +88,17 @@ class CustomFormEventPublisherTest {
         final EventService eventService = mock(EventService.class);
         final CustomFieldService customFieldService = mock(CustomFieldService.class);
         final CustomVariableFormService formService = mock(CustomVariableFormService.class);
+        final org.nrg.xnat.eventservice.services.EventServiceComponentManager componentManager =
+                mock(org.nrg.xnat.eventservice.services.EventServiceComponentManager.class);
+        final Session modelObject = new Session();
+        modelObject.setId("subject");
+        modelObject.setLabel("subject");
+        modelObject.setXsiType("xnat:subjectData");
+        modelObject.setUri("/archive/subjects/subject");
+        when(componentManager.getModelObject(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(modelObject);
         final CustomFormEventPublisher publisher = new CustomFormEventPublisher(eventService, customFieldService,
-                mapper, formService);
+                mapper, formService, componentManager);
         final XFTItem oldItem = xftItem(null);
         final XFTItem savedItem = xftItem(oldItem);
         final ItemI item = subjectItem(savedItem);
@@ -119,28 +128,16 @@ class CustomFormEventPublisherTest {
                 .containsEntry("81902a73-23b2-4bfb-a5aa-779997fae683",
                         after.get("81902a73-23b2-4bfb-a5aa-779997fae683"));
         final Object eventPayload = ((CustomFormModifiedEvent<?>) event).getObject(user());
-        assertThat(eventPayload).isSameAs(item);
-        final XnatModelObject modelObject = new Session();
-        modelObject.setId("subject");
-        modelObject.setLabel("subject");
-        modelObject.setXsiType("xnat:subjectData");
-        modelObject.setUri("/archive/subjects/subject");
-        final JsonNode payload = mapper.valueToTree(modelObject);
+        assertThat(eventPayload).isInstanceOf(JsonNode.class);
+        final JsonNode payload = (JsonNode) eventPayload;
         assertThat(payload.path("id").asText()).isEqualTo("subject");
         assertThat(payload.path("customForms").get(0).path("uid").asText())
                 .isEqualTo("81902a73-23b2-4bfb-a5aa-779997fae683");
         assertThat(payload.path("customForms").get(0).path("name").asText())
                 .isEqualTo("scan-map-mapped_sessions");
         assertThat(payload.path("changedFields")).isEqualTo(mapper.readTree("[\"field\"]"));
-        assertThat(mapper.valueToTree(modelObject).has("customForms")).isFalse();
-        final Session otherObject = new Session();
-        otherObject.setId("another-subject");
-        otherObject.setXsiType("xnat:subjectData");
-        assertThat(mapper.valueToTree(otherObject).has("customForms")).isFalse();
-
-        event.getObject(user());
-        final JsonNode repeatedPayload = mapper.valueToTree(modelObject);
-        assertThat(repeatedPayload.has("customForms")).isTrue();
+        assertThat(payload.path("uri").asText()).isEqualTo("/archive/subjects/subject");
+        assertThat(((JsonNode) event.getObject(user())).path("customForms")).hasSize(1);
     }
 
     @Test
@@ -175,7 +172,8 @@ class CustomFormEventPublisherTest {
         final EventService eventService = mock(EventService.class);
         final CustomFieldService customFieldService = mock(CustomFieldService.class);
         final CustomFormEventPublisher publisher = new CustomFormEventPublisher(eventService, customFieldService,
-                mapper, mock(CustomVariableFormService.class));
+                mapper, mock(CustomVariableFormService.class),
+                mock(org.nrg.xnat.eventservice.services.EventServiceComponentManager.class));
         final XFTItem savedItem = xftItem(null);
         final ItemI item = subjectItem(savedItem);
         final JsonNode fields = mapper.readTree("""
@@ -196,7 +194,8 @@ class CustomFormEventPublisherTest {
         final EventService eventService = mock(EventService.class);
         final CustomFieldService customFieldService = mock(CustomFieldService.class);
         final CustomFormEventPublisher publisher = new CustomFormEventPublisher(eventService, customFieldService,
-                mapper, mock(CustomVariableFormService.class));
+                mapper, mock(CustomVariableFormService.class),
+                mock(org.nrg.xnat.eventservice.services.EventServiceComponentManager.class));
         final XFTItem savedItem = xftItem(null);
         final ItemI item = subjectItem(savedItem);
         when(customFieldService.getFields(savedItem)).thenReturn(mapper.createObjectNode());

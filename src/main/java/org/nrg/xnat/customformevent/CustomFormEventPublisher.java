@@ -13,6 +13,8 @@ import org.nrg.xdat.base.BaseElement;
 import org.nrg.xnat.customforms.service.CustomVariableFormService;
 import org.nrg.xnat.entities.CustomVariableForm;
 import org.nrg.xnat.eventservice.services.EventService;
+import org.nrg.xnat.eventservice.services.EventServiceComponentManager;
+import org.nrg.xnat.eventservice.model.xnat.XnatModelObject;
 import org.nrg.xft.ItemI;
 import org.nrg.xft.XFTItem;
 import org.nrg.xft.security.UserI;
@@ -38,16 +40,20 @@ public class CustomFormEventPublisher {
     private final EventService eventService;
     private final CustomFieldService customFieldService;
     private final CustomVariableFormService customVariableFormService;
+    private final EventServiceComponentManager componentManager;
+    private final ObjectMapper objectMapper;
     private final ConcurrentMap<UUID, CachedFormName> formNameCache = new ConcurrentHashMap<>();
 
     public CustomFormEventPublisher(final EventService eventService,
                                     final CustomFieldService customFieldService,
                                     final ObjectMapper objectMapper,
-                                    final CustomVariableFormService customVariableFormService) {
+                                    final CustomVariableFormService customVariableFormService,
+                                    final EventServiceComponentManager componentManager) {
         this.eventService = eventService;
         this.customFieldService = customFieldService;
         this.customVariableFormService = customVariableFormService;
-        objectMapper.registerModule(new CustomFormPayloadModule());
+        this.componentManager = componentManager;
+        this.objectMapper = objectMapper;
     }
 
     @Around("execution(* org.nrg.xft.utils.SaveItemHelper.save(org.nrg.xft.ItemI, org.nrg.xft.security.UserI, boolean, boolean, org.nrg.xft.event.EventMetaI))")
@@ -63,10 +69,18 @@ public class CustomFormEventPublisher {
         if (!changedForms.isEmpty()) {
             try {
                 final Object eventItem = BaseElement.GetGeneratedItem(item);
-                eventService.triggerEvent(CustomFormModifiedEventFactory.create(
+                final CustomFormModifiedEvent<?> event = CustomFormModifiedEventFactory.create(
                         eventItem == null ? item : eventItem, user.getUsername(), changedForms,
                         createCustomForms(changedForms.keySet()),
-                        findChangedFields(oldFields, newFields, changedForms.keySet())));
+                        findChangedFields(oldFields, newFields, changedForms.keySet()));
+                final Object eventObject = event.getObject(user);
+                final XnatModelObject modelObject = componentManager.getModelObject(eventObject, user);
+                final JsonNode basePayload = modelObject == null
+                        ? objectMapper.valueToTree(eventObject)
+                        : objectMapper.valueToTree(modelObject);
+                event.setPayloadObject(CustomFormPayload.withMetadata(
+                        basePayload, event.getCustomForms(), event.getChangedFields()));
+                eventService.triggerEvent(event);
             } catch (final RuntimeException exception) {
                 LOGGER.error("Custom form data was saved, but its modification event could not be published for {}",
                         item.getXSIType(), exception);

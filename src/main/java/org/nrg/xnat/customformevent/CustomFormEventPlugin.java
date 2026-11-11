@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.nrg.framework.annotations.XnatPlugin;
 import org.nrg.xnat.customforms.service.CustomVariableFormService;
 import org.nrg.xnat.eventservice.services.EventService;
+import org.nrg.xnat.eventservice.services.EventServiceComponentManager;
 import org.nrg.xnat.services.customfields.CustomFieldService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
@@ -16,7 +17,9 @@ public class CustomFormEventPlugin {
     public CustomFormEventPublisher customFormEventPublisher(final EventService eventService,
                                                                final CustomFieldService customFieldService,
                                                                final ObjectMapper objectMapper,
-                                                               final CustomVariableFormService customVariableFormService) {
-        return new CustomFormEventPublisher(eventService, customFieldService, objectMapper, customVariableFormService);
+                                                               final CustomVariableFormService customVariableFormService,
+                                                               final EventServiceComponentManager componentManager) {
+        return new CustomFormEventPublisher(eventService, customFieldService, objectMapper,
+                customVariableFormService, componentManager);
     }
 }

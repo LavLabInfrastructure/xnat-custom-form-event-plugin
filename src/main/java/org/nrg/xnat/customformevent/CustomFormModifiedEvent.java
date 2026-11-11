@@ -18,6 +18,7 @@ public abstract class CustomFormModifiedEvent<T> extends AbstractEventServiceEve
     private static final long serialVersionUID = 1L;
     private static final Logger LOGGER = LoggerFactory.getLogger(CustomFormModifiedEvent.class);
     private transient T eventObject;
+    private JsonNode payloadObject;
     private JsonNode customForms;
     private JsonNode changedFields;
 
@@ -43,8 +44,12 @@ public abstract class CustomFormModifiedEvent<T> extends AbstractEventServiceEve
     @Override
     @SuppressWarnings("unchecked")
     public final T getObject(final UserI user) {
+        return (T) (payloadObject == null ? loadObject(user) : payloadObject);
+    }
+
+    @SuppressWarnings("unchecked")
+    private T loadObject(final UserI user) {
         if (eventObject != null) {
-            CustomFormPayloadModule.prepare(xsiType, payloadId, customForms, changedFields);
             return eventObject;
         }
         if (xsiType == null || payloadId == null) {
@@ -76,6 +81,18 @@ public abstract class CustomFormModifiedEvent<T> extends AbstractEventServiceEve
 
     public final Map<String, JsonNode> getChangedForms() {
         return changedForms;
+    }
+
+    final JsonNode getCustomForms() {
+        return customForms;
+    }
+
+    final JsonNode getChangedFields() {
+        return changedFields;
+    }
+
+    final void setPayloadObject(final JsonNode payloadObject) {
+        this.payloadObject = payloadObject == null ? null : payloadObject.deepCopy();
     }
 
     final void setCustomForms(final JsonNode payload) {
