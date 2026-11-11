@@ -44,7 +44,7 @@ public abstract class CustomFormModifiedEvent<T> extends AbstractEventServiceEve
     @SuppressWarnings("unchecked")
     public final T getObject(final UserI user) {
         if (eventObject != null) {
-            CustomFormPayloadModule.prepare(xsiType, customForms, changedFields);
+            CustomFormPayloadModule.prepare(xsiType, payloadId, customForms, changedFields);
             return eventObject;
         }
         if (xsiType == null || payloadId == null) {
@@ -57,9 +57,7 @@ public abstract class CustomFormModifiedEvent<T> extends AbstractEventServiceEve
                 LOGGER.warn("No XNAT item found for custom form event payload {} ({})", payloadId, xsiType);
                 return null;
             }
-            final T generatedItem = (T) org.nrg.xdat.base.BaseElement.GetGeneratedItem(item);
-            CustomFormPayloadModule.prepare(xsiType, customForms, changedFields);
-            return generatedItem;
+            return (T) org.nrg.xdat.base.BaseElement.GetGeneratedItem(item);
         } catch (final Exception exception) {
             LOGGER.warn("Unable to reload custom form event payload {} ({})", payloadId, xsiType, exception);
             return null;

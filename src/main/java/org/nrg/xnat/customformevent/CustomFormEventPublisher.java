@@ -25,13 +25,20 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.regex.Pattern;
 
 @Aspect
 public class CustomFormEventPublisher {
     private static final Logger LOGGER = LoggerFactory.getLogger(CustomFormEventPublisher.class);
+    private static final Pattern UUID_PATTERN = Pattern.compile(
+            "(?i)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}");
+    private static final long FORM_NAME_CACHE_TTL_NANOS = java.util.concurrent.TimeUnit.MINUTES.toNanos(5);
     private final EventService eventService;
     private final CustomFieldService customFieldService;
     private final CustomVariableFormService customVariableFormService;
+    private final ConcurrentMap<UUID, CachedFormName> formNameCache = new ConcurrentHashMap<>();
 
     public CustomFormEventPublisher(final EventService eventService,
                                     final CustomFieldService customFieldService,
@@ -54,11 +61,16 @@ public class CustomFormEventPublisher {
         final Map<String, JsonNode> changedForms = findChangedForms(oldFields, newFields);
 
         if (!changedForms.isEmpty()) {
-            final Object eventItem = BaseElement.GetGeneratedItem(item);
-            eventService.triggerEvent(CustomFormModifiedEventFactory.create(
-                    eventItem == null ? item : eventItem, user.getUsername(), changedForms,
-                    createCustomForms(changedForms.keySet()),
-                    findChangedFields(oldFields, newFields, changedForms.keySet())));
+            try {
+                final Object eventItem = BaseElement.GetGeneratedItem(item);
+                eventService.triggerEvent(CustomFormModifiedEventFactory.create(
+                        eventItem == null ? item : eventItem, user.getUsername(), changedForms,
+                        createCustomForms(changedForms.keySet()),
+                        findChangedFields(oldFields, newFields, changedForms.keySet())));
+            } catch (final RuntimeException exception) {
+                LOGGER.error("Custom form data was saved, but its modification event could not be published for {}",
+                        item.getXSIType(), exception);
+            }
         }
         return result;
     }
@@ -68,17 +80,36 @@ public class CustomFormEventPublisher {
         for (final String formId : changedFormIds) {
             final ObjectNode formIdentity = customForms.addObject();
             formIdentity.put("uid", formId);
-            final CustomVariableForm form = customVariableFormService.findByUuid(UUID.fromString(formId));
-            if (form == null) {
-                LOGGER.warn("No custom form definition found for form UUID {}", formId);
-            } else {
-                final String formName = form.title();
-                if (formName != null) {
+            try {
+                final UUID formUuid = UUID.fromString(formId);
+                final long now = System.nanoTime();
+                final CachedFormName cached = formNameCache.get(formUuid);
+                final String formName;
+                if (cached != null && now - cached.cachedAtNanos() < FORM_NAME_CACHE_TTL_NANOS) {
+                    formName = cached.name();
+                } else {
+                    final CustomVariableForm form = customVariableFormService.findByUuid(formUuid);
+                    formName = form == null ? null : form.title();
+                    if (formName != null) {
+                        formNameCache.put(formUuid, new CachedFormName(formName, now));
+                    } else {
+                        formNameCache.remove(formUuid);
+                    }
+                }
+                if (formName == null) {
+                    LOGGER.warn("No custom form definition name found for form UUID {}", formId);
+                } else {
                     formIdentity.put("name", formName);
                 }
+            } catch (final RuntimeException exception) {
+                LOGGER.warn("Unable to load custom form definition for UUID {}; continuing without its name",
+                        formId, exception);
             }
         }
         return customForms;
+    }
+
+    private record CachedFormName(String name, long cachedAtNanos) {
     }
 
     private JsonNode getCustomFields(final ItemI item) throws Exception {
@@ -158,6 +189,6 @@ public class CustomFormEventPublisher {
     }
 
     private static boolean isUuid(final String value) {
-        return value != null && value.matches("(?i)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}");
+        return value != null && UUID_PATTERN.matcher(value).matches();
     }
 }

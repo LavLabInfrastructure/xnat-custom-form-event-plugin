@@ -39,13 +39,17 @@ final class CustomFormPayloadModule extends SimpleModule {
         });
     }
 
-    static void prepare(final String xsiType, final JsonNode customForms, final JsonNode changedFields) {
-        if (xsiType != null && customForms != null && customForms.isArray() && !customForms.isEmpty()) {
-            PAYLOAD_CONTEXT.set(new PayloadContext(xsiType, customForms, changedFields));
+    static void prepare(final String xsiType, final String payloadId,
+                        final JsonNode customForms, final JsonNode changedFields) {
+        if (xsiType == null || payloadId == null || customForms == null || !customForms.isArray()
+                || customForms.isEmpty()) {
+            PAYLOAD_CONTEXT.remove();
+            return;
         }
+        PAYLOAD_CONTEXT.set(new PayloadContext(xsiType, payloadId, customForms.deepCopy(), changedFields.deepCopy()));
     }
 
-    private record PayloadContext(String xsiType, JsonNode customForms, JsonNode changedFields) {
+    private record PayloadContext(String xsiType, String payloadId, JsonNode customForms, JsonNode changedFields) {
     }
 
     private static final class CustomFormPayloadSerializer extends JsonSerializer<Object> {
@@ -58,7 +62,7 @@ final class CustomFormPayloadModule extends SimpleModule {
         @Override
         public void serialize(final Object value, final JsonGenerator generator,
                               final SerializerProvider provider) throws IOException {
-            final PayloadContext context = takeMatchingContext(value);
+            final PayloadContext context = getMatchingContext(value);
             if (context == null) {
                 delegate.serialize(value, generator, provider);
                 return;
@@ -70,7 +74,7 @@ final class CustomFormPayloadModule extends SimpleModule {
         public void serializeWithType(final Object value, final JsonGenerator generator,
                                       final SerializerProvider provider,
                                       final TypeSerializer typeSerializer) throws IOException {
-            final PayloadContext context = takeMatchingContext(value);
+            final PayloadContext context = getMatchingContext(value);
             if (context == null) {
                 delegate.serializeWithType(value, generator, provider, typeSerializer);
                 return;
@@ -78,24 +82,37 @@ final class CustomFormPayloadModule extends SimpleModule {
             writeWithCustomForms(value, generator, provider, typeSerializer, context);
         }
 
-        private PayloadContext takeMatchingContext(final Object value) {
+        private PayloadContext getMatchingContext(final Object value) {
             final PayloadContext context = PAYLOAD_CONTEXT.get();
             if (context == null) {
                 return null;
             }
+            PAYLOAD_CONTEXT.remove();
             final String xsiType;
+            final String payloadId;
             if (value instanceof XnatModelObject modelObject) {
                 xsiType = modelObject.getXsiType();
+                payloadId = modelObject.getId();
             } else if (value instanceof ItemI item) {
                 xsiType = item.getXSIType();
+                payloadId = getItemId(item);
             } else {
-                xsiType = null;
+                return null;
             }
-            PAYLOAD_CONTEXT.remove();
-            if (context.xsiType().equals(xsiType)) {
+            if (context.xsiType().equals(xsiType) && context.payloadId().equals(payloadId)) {
+                PAYLOAD_CONTEXT.remove();
                 return context;
             }
+            PAYLOAD_CONTEXT.remove();
             return null;
+        }
+
+        private String getItemId(final ItemI item) {
+            try {
+                return item.getStringProperty("ID");
+            } catch (final Exception exception) {
+                return null;
+            }
         }
 
         private void writeWithCustomForms(final Object value, final JsonGenerator generator,

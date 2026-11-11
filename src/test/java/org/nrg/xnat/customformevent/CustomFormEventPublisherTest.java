@@ -133,6 +133,14 @@ class CustomFormEventPublisherTest {
                 .isEqualTo("scan-map-mapped_sessions");
         assertThat(payload.path("changedFields")).isEqualTo(mapper.readTree("[\"field\"]"));
         assertThat(mapper.valueToTree(modelObject).has("customForms")).isFalse();
+        final Session otherObject = new Session();
+        otherObject.setId("another-subject");
+        otherObject.setXsiType("xnat:subjectData");
+        assertThat(mapper.valueToTree(otherObject).has("customForms")).isFalse();
+
+        event.getObject(user());
+        final JsonNode repeatedPayload = mapper.valueToTree(modelObject);
+        assertThat(repeatedPayload.has("customForms")).isTrue();
     }
 
     @Test

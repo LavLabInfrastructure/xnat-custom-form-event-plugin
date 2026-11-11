@@ -55,23 +55,11 @@ final class CustomFormModifiedEventFactory {
         if (xsiType == null) {
             return new ExperimentCustomFormModifiedEvent(experiment, username, changedForms);
         }
-        final String normalized = xsiType.substring(xsiType.indexOf(':') + 1).toLowerCase(Locale.ROOT);
         final String projectId = experiment.getProject();
         final String payloadId = experiment.getId();
-        return switch (normalized) {
-            case "crsessiondata" -> new CrSessionCustomFormModifiedEvent(experiment, username, projectId, xsiType, payloadId, changedForms);
-            case "ctsessiondata" -> new CtSessionCustomFormModifiedEvent(experiment, username, projectId, xsiType, payloadId, changedForms);
-            case "mrsessiondata" -> new MrSessionCustomFormModifiedEvent(experiment, username, projectId, xsiType, payloadId, changedForms);
-            case "petmrsessiondata" -> new PetMrSessionCustomFormModifiedEvent(experiment, username, projectId, xsiType, payloadId, changedForms);
-            case "petsessiondata" -> new PetSessionCustomFormModifiedEvent(experiment, username, projectId, xsiType, payloadId, changedForms);
-            case "qcassessmentdata" -> new AutoQcCustomFormModifiedEvent(experiment, username, projectId, xsiType, payloadId, changedForms);
-            case "qcmanualassessordata" -> new ManualQcCustomFormModifiedEvent(experiment, username, projectId, xsiType, payloadId, changedForms);
-            case "validationdata", "protocoldata" ->
-                    new ProtocolValidationCustomFormModifiedEvent(experiment, username, projectId, xsiType, payloadId, changedForms);
-            case "roicollectiondata" -> new RoiCollectionCustomFormModifiedEvent(experiment, username, projectId, xsiType, payloadId, changedForms);
-            case "assessordata" -> new XsyncAssessorDataCustomFormModifiedEvent(experiment, username, projectId, xsiType, payloadId, changedForms);
-            default -> new ExperimentCustomFormModifiedEvent(experiment, username, changedForms);
-        };
+        final CustomFormModifiedEvent<?> event = createTypedEvent(
+                experiment, username, projectId, xsiType, payloadId, changedForms);
+        return event == null ? new ExperimentCustomFormModifiedEvent(experiment, username, changedForms) : event;
     }
 
     private static String getItemProperty(final ItemI item, final String property) {
@@ -88,9 +76,15 @@ final class CustomFormModifiedEventFactory {
         if (xsiType == null) {
             throw new IllegalArgumentException("Unsupported custom-field item type: " + item.getClass().getName());
         }
+        return createTypedEvent(item, username, getItemProperty(item, "project"), xsiType,
+                getItemProperty(item, "ID"), changedForms);
+    }
+
+    private static CustomFormModifiedEvent<?> createTypedEvent(final Object item, final String username,
+                                                                 final String projectId, final String xsiType,
+                                                                 final String payloadId,
+                                                                 final Map<String, JsonNode> changedForms) {
         final String normalized = xsiType.substring(xsiType.indexOf(':') + 1).toLowerCase(Locale.ROOT);
-        final String projectId = getItemProperty(item, "project");
-        final String payloadId = getItemProperty(item, "ID");
         return switch (normalized) {
             case "crsessiondata" -> new CrSessionCustomFormModifiedEvent(item, username, projectId, xsiType, payloadId, changedForms);
             case "ctsessiondata" -> new CtSessionCustomFormModifiedEvent(item, username, projectId, xsiType, payloadId, changedForms);
@@ -102,7 +96,7 @@ final class CustomFormModifiedEventFactory {
             case "validationdata", "protocoldata" -> new ProtocolValidationCustomFormModifiedEvent(item, username, projectId, xsiType, payloadId, changedForms);
             case "roicollectiondata" -> new RoiCollectionCustomFormModifiedEvent(item, username, projectId, xsiType, payloadId, changedForms);
             case "assessordata" -> new XsyncAssessorDataCustomFormModifiedEvent(item, username, projectId, xsiType, payloadId, changedForms);
-            default -> throw new IllegalArgumentException("Unsupported custom-field XSI type: " + xsiType);
+            default -> null;
         };
     }
 }
